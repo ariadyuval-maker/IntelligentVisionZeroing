@@ -64,8 +64,53 @@ function processImage() {
         } catch (err) {
             showResults({ error: 'Processing error: ' + err.message });
         }
+        if (!output.error) drawAnnotations(output);
         loading.style.display = 'none';
     }, 50);
+}
+
+function drawAnnotations(output) {
+    const canvas = document.getElementById('annotatedCanvas');
+    canvas.width = loadedImage.width;
+    canvas.height = loadedImage.height;
+    canvas.style.display = 'block';
+    document.getElementById('legend').style.display = 'block';
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(loadedImage, 0, 0);
+
+    const r = 20; // circle radius
+
+    // 1. Green circle around laser
+    ctx.beginPath();
+    ctx.arc(output.laser.x, output.laser.y, r, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 2. Red circle around reticle
+    ctx.beginPath();
+    ctx.arc(output.reticle.x, output.reticle.y, r, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 3. Blue dot at ideal reticle position
+    ctx.beginPath();
+    ctx.arc(output.ideal.x, output.ideal.y, 8, 0, 2 * Math.PI);
+    ctx.fillStyle = '#3399ff';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Labels
+    ctx.font = 'bold 14px monospace';
+    ctx.fillStyle = '#00ff00';
+    ctx.fillText('Laser', output.laser.x + r + 5, output.laser.y - 5);
+    ctx.fillStyle = '#ff0000';
+    ctx.fillText('Reticle', output.reticle.x + r + 5, output.reticle.y - 5);
+    ctx.fillStyle = '#3399ff';
+    ctx.fillText('Ideal', output.ideal.x + 12, output.ideal.y - 5);
 }
 
 function runPipeline(img) {
@@ -138,7 +183,8 @@ function runPipeline(img) {
             abs_y: abs_y,
             ppmm: ppmm,
             laser: laser,
-            reticle: reticle
+            reticle: reticle,
+            ideal: { x: ideal_x, y: ideal_y }
         };
     } catch (e) {
         src.delete();
