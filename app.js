@@ -164,8 +164,8 @@ function drawAnnotations(output) {
 }
 
 function runPipeline(img) {
-    const BORE_TO_RAIL  = parseFloat(document.getElementById('cfgBoreToRail').value)  || 25.4;
-    const OPTIC_CENTER  = parseFloat(document.getElementById('cfgOpticCenter').value)  || 38.0;
+    const BORE_TO_RAIL  = parseFloat(document.getElementById('cfgBoreToRail').value)  || 30;
+    const OPTIC_CENTER  = parseFloat(document.getElementById('cfgOpticCenter').value)  || 39;
     const GRID_SPACING  = parseFloat(document.getElementById('cfgGridSpacing').value)  || 10.0;
 
     // Load image into OpenCV Mat
