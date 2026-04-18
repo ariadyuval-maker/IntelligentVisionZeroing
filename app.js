@@ -112,7 +112,55 @@ function drawAnnotations(output) {
     ctx.fillStyle = '#ff0000';
     ctx.fillText('Reticle', output.reticle.x + r + 5, output.reticle.y - 5);
     ctx.fillStyle = '#3399ff';
-    ctx.fillText('Ideal', output.ideal.x + blueDotR + 5, output.ideal.y - 5);
+    ctx.fillText('Ideal Laser', output.ideal.x + blueDotR + 5, output.ideal.y - 5);
+
+    // 4. Grid scale indicators (one grid square length)
+    const gridPx = output.ppmm * parseFloat(document.getElementById('cfgGridSpacing').value || 10);
+    const lw = Math.max(2, output.ppmm * 0.4);
+
+    // Horizontal bar along X axis (below laser, 1 grid square wide)
+    const hBarY = output.laser.y + r + 20;
+    const hBarX = output.laser.x - gridPx / 2;
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(hBarX, hBarY);
+    ctx.lineTo(hBarX + gridPx, hBarY);
+    // end ticks
+    ctx.moveTo(hBarX, hBarY - 6);
+    ctx.lineTo(hBarX, hBarY + 6);
+    ctx.moveTo(hBarX + gridPx, hBarY - 6);
+    ctx.lineTo(hBarX + gridPx, hBarY + 6);
+    ctx.stroke();
+    // label
+    ctx.fillStyle = '#ffff00';
+    ctx.font = `bold ${Math.max(12, output.ppmm * 2.5)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${parseFloat(document.getElementById('cfgGridSpacing').value || 10)} mm`, hBarX + gridPx / 2, hBarY + fontSize + 4);
+
+    // Vertical bar along Y axis (left of laser, 1 grid square tall)
+    const vBarX = output.laser.x - r - 20;
+    const vBarY = output.laser.y - gridPx / 2;
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(vBarX, vBarY);
+    ctx.lineTo(vBarX, vBarY + gridPx);
+    // end ticks
+    ctx.moveTo(vBarX - 6, vBarY);
+    ctx.lineTo(vBarX + 6, vBarY);
+    ctx.moveTo(vBarX - 6, vBarY + gridPx);
+    ctx.lineTo(vBarX + 6, vBarY + gridPx);
+    ctx.stroke();
+    // label
+    ctx.fillStyle = '#ffff00';
+    ctx.save();
+    ctx.translate(vBarX - fontSize - 2, vBarY + gridPx / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText(`${parseFloat(document.getElementById('cfgGridSpacing').value || 10)} mm`, 0, 0);
+    ctx.restore();
+    ctx.textAlign = 'start';
 }
 
 function runPipeline(img) {
@@ -170,11 +218,13 @@ function runPipeline(img) {
 
         // 4. Calculations
         const hob_mm  = BORE_TO_RAIL + OPTIC_CENTER;
-        const ideal_x = laser.x;
-        const ideal_y = laser.y - (hob_mm * ppmm);
+        // Ideal laser position: directly below the reticle by HOB
+        // (image Y grows downward, so + means below)
+        const ideal_laser_x = reticle.x;
+        const ideal_laser_y = reticle.y + (hob_mm * ppmm);
 
-        const error_x = (reticle.x - ideal_x) / ppmm;
-        const error_y = (ideal_y - reticle.y) / ppmm;
+        const error_x = (laser.x - ideal_laser_x) / ppmm;
+        const error_y = (laser.y - ideal_laser_y) / ppmm;
         const abs_y   = Math.abs(laser.y - reticle.y) / ppmm;
 
         gray.delete(); hsv2.delete(); src.delete();
@@ -186,7 +236,7 @@ function runPipeline(img) {
             ppmm: ppmm,
             laser: laser,
             reticle: reticle,
-            ideal: { x: ideal_x, y: ideal_y }
+            ideal: { x: ideal_laser_x, y: ideal_laser_y }
         };
     } catch (e) {
         src.delete();
