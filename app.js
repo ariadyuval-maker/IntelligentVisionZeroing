@@ -61,10 +61,10 @@ function processImage() {
         try {
             const output = runPipeline(loadedImage);
             showResults(output);
+            if (!output.error) drawAnnotations(output);
         } catch (err) {
             showResults({ error: 'Processing error: ' + err.message });
         }
-        if (!output.error) drawAnnotations(output);
         loading.style.display = 'none';
     }, 50);
 }
@@ -78,39 +78,41 @@ function drawAnnotations(output) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(loadedImage, 0, 0);
 
-    const r = 20; // circle radius
+    const r = Math.max(25, output.ppmm * 8); // circle radius scaled to image
+    const blueDotR = Math.max(8, output.ppmm * 5); // 10mm diameter = 5mm radius
 
     // 1. Green circle around laser
     ctx.beginPath();
     ctx.arc(output.laser.x, output.laser.y, r, 0, 2 * Math.PI);
     ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = Math.max(3, output.ppmm * 0.5);
     ctx.stroke();
 
     // 2. Red circle around reticle
     ctx.beginPath();
     ctx.arc(output.reticle.x, output.reticle.y, r, 0, 2 * Math.PI);
     ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = Math.max(3, output.ppmm * 0.5);
     ctx.stroke();
 
-    // 3. Blue dot at ideal reticle position
+    // 3. Blue dot at ideal reticle position (10mm diameter)
     ctx.beginPath();
-    ctx.arc(output.ideal.x, output.ideal.y, 8, 0, 2 * Math.PI);
-    ctx.fillStyle = '#3399ff';
+    ctx.arc(output.ideal.x, output.ideal.y, blueDotR, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(51, 153, 255, 0.7)';
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(2, output.ppmm * 0.3);
     ctx.stroke();
 
     // Labels
-    ctx.font = 'bold 14px monospace';
+    const fontSize = Math.max(14, output.ppmm * 3);
+    ctx.font = `bold ${fontSize}px monospace`;
     ctx.fillStyle = '#00ff00';
     ctx.fillText('Laser', output.laser.x + r + 5, output.laser.y - 5);
     ctx.fillStyle = '#ff0000';
     ctx.fillText('Reticle', output.reticle.x + r + 5, output.reticle.y - 5);
     ctx.fillStyle = '#3399ff';
-    ctx.fillText('Ideal', output.ideal.x + 12, output.ideal.y - 5);
+    ctx.fillText('Ideal', output.ideal.x + blueDotR + 5, output.ideal.y - 5);
 }
 
 function runPipeline(img) {
