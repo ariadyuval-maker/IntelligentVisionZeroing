@@ -1,0 +1,60 @@
+trd_content_v3_2 = """# Technical Requirements Document (TRD): Universal Cold Zeroing System (V3.2)
+
+## 1. Project Background & Objective
+The system is designed for "Cold Zeroing" of small arms. It calculates the mechanical adjustments (clicks) needed to align an optic's reticle with the weapon's bore axis using a single image input.
+
+## 2. Project Structure & Input Specification
+The C++ project must adhere to the following file structure:
+* **Root Directory/**
+    * **Photos/**: This folder contains the input image.
+        * **input_target.png**: A PNG file showing the grid, the laser dot, and the reticle.
+    * **main.cpp**: The core logic.
+    * **config.json**: Configuration file for weapon/optic parameters.
+
+**Input Requirement:** The system must automatically load the image from `Photos/input_target.png`.
+
+## 3. Hardware & Setup Context
+* **Backdrop:** A vertical target with a known **Grid Density** (e.g., 10mm x 10mm squares).
+* **Boresight:** A chamber-mounted laser (typically Green) projecting the bore axis.
+* **Image Capture:** The camera captures both the laser dot and the optic's reticle (typically Red) against the grid.
+
+## 4. Input Parameters (Weapon & Setup)
+The system requires the following data (via config.json):
+* `bore_to_rail_height`: Distance from bore center to mounting rail.
+* `optic_base_to_center`: Distance from optic base to its optical center.
+* `grid_spacing_mm`: The physical size of one grid square (e.g., 10.0).
+
+## 5. Software Logic (C++ / OpenCV)
+
+### 5.1 Image Processing & Scaling
+1. **Grid Detection:** Use OpenCV to detect grid lines and calculate the `pixels_per_mm` ratio.
+2. **Feature Extraction:**
+   - Detect **P_laser** (Green dot centroid).
+   - Detect **P_reticle** (Red dot/crosshair center).
+
+### 5.2 Error Handling (Mandatory Output)
+If the system fails to detect any required element, it must print the corresponding error message and stop further calculations:
+* If grid is not detected: Output **"Error: Grid not detected"**
+* If laser point is not detected: Output **"Error: Laser point not detected"**
+* If reticle is not detected: Output **"Error: Reticle not detected"**
+
+### 5.3 Calculations
+* **Total Height Over Bore (HOB):** `bore_to_rail_height` + `optic_base_to_center`.
+* **Ideal Position:** - The ideal X is `P_laser.x`.
+    - The ideal Y is `P_laser.y + Total_HOB` (adjusting for pixel/mm scale).
+
+## 6. Functional Outputs (Console Output)
+If all elements are detected successfully, the software must print:
+
+1. **Error X (Windage):** Horizontal distance in mm between current reticle position and Laser X-axis.
+2. **Error Y (Elevation):** Vertical distance in mm between current reticle position and the calculated ideal offset.
+3. **Absolute Y Distance:** Total physical distance in mm between the Laser Dot and the Reticle on the Y-axis.
+
+**Output Format:**
+Error X: [Value] mm
+Error Y: [Value] mm
+Absolute Y Distance: [Value] mm
+"""
+
+with open("Weapon_Zeroing_System_TRD_V3_2.txt", "w", encoding="utf-8") as f:
+    f.write(trd_content_v3_2)
