@@ -82,31 +82,9 @@ function drawAnnotations(output) {
     const blueDotR = Math.max(8, output.ppmm * 5);
     const lw = Math.max(3, output.ppmm * 0.5);
     const fontSize = Math.max(14, output.ppmm * 3);
-    const gridPx = output.ppmm * parseFloat(document.getElementById('cfgGridSpacing').value || 10);
 
-    // ── 0. Detected grid lines (purple, 1 square long) ──────────
-    ctx.strokeStyle = 'rgba(180, 100, 255, 0.7)';
-    ctx.lineWidth = Math.max(2, output.ppmm * 0.3);
-    const imgW = loadedImage.width;
-    const imgH = loadedImage.height;
-    // Vertical grid lines: draw short segments along X near top
-    if (output.gridLines && output.gridLines.vertical) {
-        output.gridLines.vertical.forEach(x => {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, gridPx);
-            ctx.stroke();
-        });
-    }
-    // Horizontal grid lines: draw short segments along Y near left
-    if (output.gridLines && output.gridLines.horizontal) {
-        output.gridLines.horizontal.forEach(y => {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(gridPx, y);
-            ctx.stroke();
-        });
-    }
+    // 5mm markers
+    const markerPx = output.ppmm * 5; // 5mm in pixels
 
     // ── 1. Green circle around laser ─────────────────────────────
     ctx.beginPath();
@@ -115,13 +93,12 @@ function drawAnnotations(output) {
     ctx.lineWidth = lw;
     ctx.stroke();
 
-    // Black square at laser center
-    const sq = Math.max(8, output.ppmm * 2);
+    // Black square at laser center (5mm side)
     ctx.fillStyle = '#000000';
-    ctx.fillRect(output.laser.x - sq/2, output.laser.y - sq/2, sq, sq);
+    ctx.fillRect(output.laser.x - markerPx/2, output.laser.y - markerPx/2, markerPx, markerPx);
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(output.laser.x - sq/2, output.laser.y - sq/2, sq, sq);
+    ctx.lineWidth = Math.max(1, output.ppmm * 0.2);
+    ctx.strokeRect(output.laser.x - markerPx/2, output.laser.y - markerPx/2, markerPx, markerPx);
 
     // ── 2. Red circle around reticle ─────────────────────────────
     ctx.beginPath();
@@ -130,17 +107,17 @@ function drawAnnotations(output) {
     ctx.lineWidth = lw;
     ctx.stroke();
 
-    // Black triangle at reticle center
-    const tri = Math.max(10, output.ppmm * 2.5);
+    // Black triangle at reticle center (5mm height)
+    const triH = markerPx;
     ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.moveTo(output.reticle.x, output.reticle.y - tri);
-    ctx.lineTo(output.reticle.x - tri * 0.866, output.reticle.y + tri * 0.5);
-    ctx.lineTo(output.reticle.x + tri * 0.866, output.reticle.y + tri * 0.5);
+    ctx.moveTo(output.reticle.x, output.reticle.y - triH * 0.67);
+    ctx.lineTo(output.reticle.x - triH * 0.577, output.reticle.y + triH * 0.33);
+    ctx.lineTo(output.reticle.x + triH * 0.577, output.reticle.y + triH * 0.33);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = Math.max(1, output.ppmm * 0.2);
     ctx.stroke();
 
     // ── 3. Blue dot at ideal laser position (10mm diameter) ──────
