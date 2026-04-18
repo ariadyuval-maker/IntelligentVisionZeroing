@@ -67,7 +67,7 @@
             cursor: pointer; color: #00d4ff; font-weight: bold; font-size: 1em;
         }
         .config-grid {
-            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px;
+            display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-top: 12px;
         }
         .config-grid label { color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px; }
         .config-grid input {
@@ -100,6 +100,10 @@
                 <label>Grid Spacing (mm)</label>
                 <input type="number" id="cfgGridSpacing" value="10.0" step="0.1">
             </div>
+            <div>
+                <label>Muzzle to Target (m)</label>
+                <input type="number" id="cfgMuzzleDist" value="3" step="0.1">
+            </div>
         </div>
     </details>
 
@@ -121,7 +125,8 @@
 
     <canvas id="annotatedCanvas" style="display:none; max-width:100%; border-radius:12px; margin-top:15px;"></canvas>
     <div id="legend" style="display:none; direction:ltr; text-align:left; margin-top:10px; color:#aaa; font-size:0.9em;">
-        🟢 Green circle = Detected laser &nbsp;&nbsp; 🔴 Red circle = Detected reticle &nbsp;&nbsp; 🔵 Blue dot = Ideal reticle position &nbsp;&nbsp; 🟡 Yellow bars = 1 grid square scale
+        🟢 Green circle = Laser area &nbsp;&nbsp; ⬛ Black square = Laser center &nbsp;&nbsp; 🔴 Red circle = Reticle area &nbsp;&nbsp; 🔺 Black triangle = Reticle center<br>
+        🔵 Blue dot = Ideal laser position &nbsp;&nbsp; ⚡ Yellow dashed = Error vector &nbsp;&nbsp; 🟣 Purple lines = Detected grid lines
     </div>
 </div>
 

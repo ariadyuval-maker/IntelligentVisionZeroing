@@ -78,24 +78,72 @@ function drawAnnotations(output) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(loadedImage, 0, 0);
 
-    const r = Math.max(25, output.ppmm * 8); // circle radius scaled to image
-    const blueDotR = Math.max(8, output.ppmm * 5); // 10mm diameter = 5mm radius
+    const r = Math.max(25, output.ppmm * 8);
+    const blueDotR = Math.max(8, output.ppmm * 5);
+    const lw = Math.max(3, output.ppmm * 0.5);
+    const fontSize = Math.max(14, output.ppmm * 3);
+    const gridPx = output.ppmm * parseFloat(document.getElementById('cfgGridSpacing').value || 10);
 
-    // 1. Green circle around laser
+    // ── 0. Detected grid lines (purple, 1 square long) ──────────
+    ctx.strokeStyle = 'rgba(180, 100, 255, 0.7)';
+    ctx.lineWidth = Math.max(2, output.ppmm * 0.3);
+    const imgW = loadedImage.width;
+    const imgH = loadedImage.height;
+    // Vertical grid lines: draw short segments along X near top
+    if (output.gridLines && output.gridLines.vertical) {
+        output.gridLines.vertical.forEach(x => {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, gridPx);
+            ctx.stroke();
+        });
+    }
+    // Horizontal grid lines: draw short segments along Y near left
+    if (output.gridLines && output.gridLines.horizontal) {
+        output.gridLines.horizontal.forEach(y => {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(gridPx, y);
+            ctx.stroke();
+        });
+    }
+
+    // ── 1. Green circle around laser ─────────────────────────────
     ctx.beginPath();
     ctx.arc(output.laser.x, output.laser.y, r, 0, 2 * Math.PI);
     ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = Math.max(3, output.ppmm * 0.5);
+    ctx.lineWidth = lw;
     ctx.stroke();
 
-    // 2. Red circle around reticle
+    // Black square at laser center
+    const sq = Math.max(8, output.ppmm * 2);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(output.laser.x - sq/2, output.laser.y - sq/2, sq, sq);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(output.laser.x - sq/2, output.laser.y - sq/2, sq, sq);
+
+    // ── 2. Red circle around reticle ─────────────────────────────
     ctx.beginPath();
     ctx.arc(output.reticle.x, output.reticle.y, r, 0, 2 * Math.PI);
     ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = Math.max(3, output.ppmm * 0.5);
+    ctx.lineWidth = lw;
     ctx.stroke();
 
-    // 3. Blue dot at ideal reticle position (10mm diameter)
+    // Black triangle at reticle center
+    const tri = Math.max(10, output.ppmm * 2.5);
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(output.reticle.x, output.reticle.y - tri);
+    ctx.lineTo(output.reticle.x - tri * 0.866, output.reticle.y + tri * 0.5);
+    ctx.lineTo(output.reticle.x + tri * 0.866, output.reticle.y + tri * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // ── 3. Blue dot at ideal laser position (10mm diameter) ──────
     ctx.beginPath();
     ctx.arc(output.ideal.x, output.ideal.y, blueDotR, 0, 2 * Math.PI);
     ctx.fillStyle = 'rgba(51, 153, 255, 0.7)';
@@ -104,8 +152,27 @@ function drawAnnotations(output) {
     ctx.lineWidth = Math.max(2, output.ppmm * 0.3);
     ctx.stroke();
 
-    // Labels
-    const fontSize = Math.max(14, output.ppmm * 3);
+    // ── 4. Yellow dashed error vector (laser → ideal) ────────────
+    ctx.setLineDash([8, 6]);
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = Math.max(2, output.ppmm * 0.4);
+    ctx.beginPath();
+    ctx.moveTo(output.laser.x, output.laser.y);
+    ctx.lineTo(output.ideal.x, output.ideal.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ── 5. HOB line (cyan dashed, reticle → ideal) ───────────────
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(0, 220, 255, 0.5)';
+    ctx.lineWidth = Math.max(1, output.ppmm * 0.25);
+    ctx.beginPath();
+    ctx.moveTo(output.reticle.x, output.reticle.y);
+    ctx.lineTo(output.ideal.x, output.ideal.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ── 6. Labels ────────────────────────────────────────────────
     ctx.font = `bold ${fontSize}px monospace`;
     ctx.fillStyle = '#00ff00';
     ctx.fillText('Laser', output.laser.x + r + 5, output.laser.y - 5);
@@ -113,54 +180,6 @@ function drawAnnotations(output) {
     ctx.fillText('Reticle', output.reticle.x + r + 5, output.reticle.y - 5);
     ctx.fillStyle = '#3399ff';
     ctx.fillText('Ideal Laser', output.ideal.x + blueDotR + 5, output.ideal.y - 5);
-
-    // 4. Grid scale indicators (one grid square length)
-    const gridPx = output.ppmm * parseFloat(document.getElementById('cfgGridSpacing').value || 10);
-    const lw = Math.max(2, output.ppmm * 0.4);
-
-    // Horizontal bar along X axis (below laser, 1 grid square wide)
-    const hBarY = output.laser.y + r + 20;
-    const hBarX = output.laser.x - gridPx / 2;
-    ctx.strokeStyle = '#ffff00';
-    ctx.lineWidth = lw;
-    ctx.beginPath();
-    ctx.moveTo(hBarX, hBarY);
-    ctx.lineTo(hBarX + gridPx, hBarY);
-    // end ticks
-    ctx.moveTo(hBarX, hBarY - 6);
-    ctx.lineTo(hBarX, hBarY + 6);
-    ctx.moveTo(hBarX + gridPx, hBarY - 6);
-    ctx.lineTo(hBarX + gridPx, hBarY + 6);
-    ctx.stroke();
-    // label
-    ctx.fillStyle = '#ffff00';
-    ctx.font = `bold ${Math.max(12, output.ppmm * 2.5)}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.fillText(`${parseFloat(document.getElementById('cfgGridSpacing').value || 10)} mm`, hBarX + gridPx / 2, hBarY + fontSize + 4);
-
-    // Vertical bar along Y axis (left of laser, 1 grid square tall)
-    const vBarX = output.laser.x - r - 20;
-    const vBarY = output.laser.y - gridPx / 2;
-    ctx.strokeStyle = '#ffff00';
-    ctx.lineWidth = lw;
-    ctx.beginPath();
-    ctx.moveTo(vBarX, vBarY);
-    ctx.lineTo(vBarX, vBarY + gridPx);
-    // end ticks
-    ctx.moveTo(vBarX - 6, vBarY);
-    ctx.lineTo(vBarX + 6, vBarY);
-    ctx.moveTo(vBarX - 6, vBarY + gridPx);
-    ctx.lineTo(vBarX + 6, vBarY + gridPx);
-    ctx.stroke();
-    // label
-    ctx.fillStyle = '#ffff00';
-    ctx.save();
-    ctx.translate(vBarX - fontSize - 2, vBarY + gridPx / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.fillText(`${parseFloat(document.getElementById('cfgGridSpacing').value || 10)} mm`, 0, 0);
-    ctx.restore();
-    ctx.textAlign = 'start';
 }
 
 function runPipeline(img) {
@@ -187,7 +206,8 @@ function runPipeline(img) {
         hsv.delete();
 
         // 1. Grid detection
-        const ppmm = detectGridScale(gray, GRID_SPACING);
+        const gridResult = detectGridScale(gray, GRID_SPACING);
+        const ppmm = gridResult.ppmm;
         if (ppmm <= 0) {
             gray.delete(); hsv2.delete(); src.delete();
             return { error: 'Error: Grid not detected' };
@@ -236,7 +256,8 @@ function runPipeline(img) {
             ppmm: ppmm,
             laser: laser,
             reticle: reticle,
-            ideal: { x: ideal_laser_x, y: ideal_laser_y }
+            ideal: { x: ideal_laser_x, y: ideal_laser_y },
+            gridLines: gridResult.lines
         };
     } catch (e) {
         src.delete();
@@ -251,8 +272,8 @@ function detectGridScale(gray, gridSpacingMm) {
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 1.5);
     cv.Canny(blurred, edges, 30, 100);
 
-    // Try multiple thresholds to find grid lines
     let bestPpmm = 0;
+    let detectedH = [], detectedV = [];
     for (let threshold = 150; threshold >= 50; threshold -= 20) {
         const lines = new cv.Mat();
         cv.HoughLines(edges, lines, 1, Math.PI / 180, threshold);
@@ -270,11 +291,12 @@ function detectGridScale(gray, gridSpacingMm) {
         }
         lines.delete();
 
-        // Need at least 3 lines in one direction to get reliable spacing
         if (hRho.length < 3 && vRho.length < 3) continue;
 
-        const hg = medianGap(deduplicate(hRho, 5));
-        const vg = medianGap(deduplicate(vRho, 5));
+        detectedH = deduplicate(hRho, 5);
+        detectedV = deduplicate(vRho, 5);
+        const hg = medianGap(detectedH);
+        const vg = medianGap(detectedV);
 
         let pixelGap = 0;
         if (hg > 5 && vg > 5) pixelGap = (hg + vg) / 2;
@@ -283,13 +305,13 @@ function detectGridScale(gray, gridSpacingMm) {
 
         if (pixelGap > 5) {
             bestPpmm = pixelGap / gridSpacingMm;
-            console.log(`Grid detected: threshold=${threshold}, hLines=${hRho.length}, vLines=${vRho.length}, pixelGap=${pixelGap.toFixed(1)}, ppmm=${bestPpmm.toFixed(3)}`);
+            console.log(`Grid detected: threshold=${threshold}, hLines=${detectedH.length}, vLines=${detectedV.length}, pixelGap=${pixelGap.toFixed(1)}, ppmm=${bestPpmm.toFixed(3)}`);
             break;
         }
     }
 
     blurred.delete(); edges.delete();
-    return bestPpmm;
+    return { ppmm: bestPpmm, lines: { horizontal: detectedH, vertical: detectedV } };
 }
 
 // Remove near-duplicate line positions (within minDist pixels)
