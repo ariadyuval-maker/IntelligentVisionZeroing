@@ -248,39 +248,65 @@ function runPipeline(img) {
 function detectGridScale(gray, gridSpacingMm) {
     const blurred = new cv.Mat();
     const edges   = new cv.Mat();
-    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 1.0);
-    cv.Canny(blurred, edges, 50, 150);
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 1.5);
+    cv.Canny(blurred, edges, 30, 100);
 
-    const lines = new cv.Mat();
-    cv.HoughLines(edges, lines, 1, Math.PI / 180, 120);
+    // Try multiple thresholds to find grid lines
+    let bestPpmm = 0;
+    for (let threshold = 150; threshold >= 50; threshold -= 20) {
+        const lines = new cv.Mat();
+        cv.HoughLines(edges, lines, 1, Math.PI / 180, threshold);
 
-    const hRho = [];
-    const vRho = [];
-    for (let i = 0; i < lines.rows; i++) {
-        const rho   = Math.abs(lines.data32F[i * 2]);
-        const theta = lines.data32F[i * 2 + 1];
-        if (Math.abs(theta - Math.PI / 2) < Math.PI / 18) {
-            hRho.push(rho);
-        } else if (theta < Math.PI / 18 || theta > Math.PI - Math.PI / 18) {
-            vRho.push(rho);
+        const hRho = [];
+        const vRho = [];
+        for (let i = 0; i < lines.rows; i++) {
+            const rho   = Math.abs(lines.data32F[i * 2]);
+            const theta = lines.data32F[i * 2 + 1];
+            if (Math.abs(theta - Math.PI / 2) < Math.PI / 12) {
+                hRho.push(rho);
+            } else if (theta < Math.PI / 12 || theta > Math.PI - Math.PI / 12) {
+                vRho.push(rho);
+            }
+        }
+        lines.delete();
+
+        // Need at least 3 lines in one direction to get reliable spacing
+        if (hRho.length < 3 && vRho.length < 3) continue;
+
+        const hg = medianGap(deduplicate(hRho, 5));
+        const vg = medianGap(deduplicate(vRho, 5));
+
+        let pixelGap = 0;
+        if (hg > 5 && vg > 5) pixelGap = (hg + vg) / 2;
+        else if (hg > 5) pixelGap = hg;
+        else if (vg > 5) pixelGap = vg;
+
+        if (pixelGap > 5) {
+            bestPpmm = pixelGap / gridSpacingMm;
+            console.log(`Grid detected: threshold=${threshold}, hLines=${hRho.length}, vLines=${vRho.length}, pixelGap=${pixelGap.toFixed(1)}, ppmm=${bestPpmm.toFixed(3)}`);
+            break;
         }
     }
 
-    blurred.delete(); edges.delete(); lines.delete();
+    blurred.delete(); edges.delete();
+    return bestPpmm;
+}
 
-    const hg = medianGap(hRho);
-    const vg = medianGap(vRho);
-    let pixelGap = 0;
-    if (hg > 0 && vg > 0) pixelGap = (hg + vg) / 2;
-    else if (hg > 0) pixelGap = hg;
-    else if (vg > 0) pixelGap = vg;
-
-    return pixelGap > 0 ? pixelGap / gridSpacingMm : 0;
+// Remove near-duplicate line positions (within minDist pixels)
+function deduplicate(arr, minDist) {
+    if (arr.length === 0) return arr;
+    arr.sort((a, b) => a - b);
+    const result = [arr[0]];
+    for (let i = 1; i < arr.length; i++) {
+        if (arr[i] - result[result.length - 1] > minDist) {
+            result.push(arr[i]);
+        }
+    }
+    return result;
 }
 
 function medianGap(arr) {
     if (arr.length < 2) return 0;
-    arr.sort((a, b) => a - b);
     const gaps = [];
     for (let i = 1; i < arr.length; i++) gaps.push(arr[i] - arr[i - 1]);
     gaps.sort((a, b) => a - b);
@@ -365,6 +391,14 @@ function showResults(output) {
         <div class="result-row">
             <span class="result-label">Reticle position:</span>
             <span class="result-value">(${output.reticle.x.toFixed(1)}, ${output.reticle.y.toFixed(1)}) px</span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Ideal laser position:</span>
+            <span class="result-value">(${output.ideal.x.toFixed(1)}, ${output.ideal.y.toFixed(1)}) px</span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Pixel distance (laser→reticle):</span>
+            <span class="result-value">ΔX=${(output.laser.x - output.reticle.x).toFixed(1)}  ΔY=${(output.laser.y - output.reticle.y).toFixed(1)} px</span>
         </div>
     `;
 }
