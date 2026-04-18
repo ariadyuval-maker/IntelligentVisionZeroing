@@ -5,36 +5,18 @@
  */
 
 #include <opencv2/opencv.hpp>
-#include <nlohmann/json.hpp>
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include <string>
 
-// ── Config ──────────────────────────────────────────────────────
-struct Config {
-    double bore_to_rail_height;
-    double optic_base_to_center;
-    double grid_spacing_mm;
-};
-
-static Config loadConfig(const std::string& path) {
-    std::ifstream ifs(path);
-    if (!ifs.is_open())
-        throw std::runtime_error("Cannot open config: " + path);
-    nlohmann::json j;
-    ifs >> j;
-    return {
-        j.at("bore_to_rail_height").get<double>(),
-        j.at("optic_base_to_center").get<double>(),
-        j.at("grid_spacing_mm").get<double>()
-    };
-}
+// ── Default Configuration ───────────────────────────────────────
+static constexpr double BORE_TO_RAIL_HEIGHT = 25.4;   // mm
+static constexpr double OPTIC_BASE_TO_CENTER = 38.0;  // mm
+static constexpr double GRID_SPACING_MM = 10.0;       // mm
 
 // ── Grid Detection → pixels_per_mm ─────────────────────────────
-static double detectGridScale(const cv::Mat& gray, double grid_spacing_mm) {
+static double detectGridScale(const cv::Mat& gray) {
     cv::Mat blurred, edges;
     cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 1.0);
     cv::Canny(blurred, edges, 50, 150);
@@ -46,9 +28,9 @@ static double detectGridScale(const cv::Mat& gray, double grid_spacing_mm) {
     for (const auto& l : lines) {
         double rho   = std::abs(l[0]);
         double theta = l[1];
-        if (std::abs(theta - CV_PI / 2) < CV_PI / 18)          // horizontal
+        if (std::abs(theta - CV_PI / 2) < CV_PI / 18)
             h_rho.push_back(rho);
-        else if (theta < CV_PI / 18 || theta > CV_PI - CV_PI / 18) // vertical
+        else if (theta < CV_PI / 18 || theta > CV_PI - CV_PI / 18)
             v_rho.push_back(rho);
     }
 
@@ -68,7 +50,7 @@ static double detectGridScale(const cv::Mat& gray, double grid_spacing_mm) {
                      : (hg > 0)            ? hg
                      : vg;
 
-    return (pixel_gap > 0) ? pixel_gap / grid_spacing_mm : 0.0;
+    return (pixel_gap > 0) ? pixel_gap / GRID_SPACING_MM : 0.0;
 }
 
 // ── Colour-blob centroid (HSV) ──────────────────────────────────
@@ -96,19 +78,9 @@ static cv::Point2d findCentroid(const cv::Mat& hsv,
 
 // ── Main ────────────────────────────────────────────────────────
 int main() {
-    // 1. Load config
-    Config cfg;
-    try {
-        cfg = loadConfig("config.json");
-    } catch (const std::exception& ex) {
-        std::cerr << ex.what() << "\n";
-        return 1;
-    }
-
-    // 2. Load image
     cv::Mat frame = cv::imread("Photos/input_target.png");
     if (frame.empty()) {
-        std::cerr << "Error: Cannot load Photos/input_target.png\n";
+        std::cout << "Error: Cannot load Photos/input_target.png" << std::endl;
         return 1;
     }
 
@@ -116,21 +88,21 @@ int main() {
     cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
     cv::cvtColor(frame, hsv,  cv::COLOR_BGR2HSV);
 
-    // 3. Grid → pixels_per_mm
-    double ppmm = detectGridScale(gray, cfg.grid_spacing_mm);
+    // 1. Grid
+    double ppmm = detectGridScale(gray);
     if (ppmm <= 0.0) {
-        std::cout << "Error: Grid not detected\n";
+        std::cout << "Error: Grid not detected" << std::endl;
         return 0;
     }
 
-    // 4. Green laser centroid
+    // 2. Green laser
     cv::Point2d laser = findCentroid(hsv, {35, 50, 50}, {85, 255, 255});
     if (laser.x < 0) {
-        std::cout << "Error: Laser point not detected\n";
+        std::cout << "Error: Laser point not detected" << std::endl;
         return 0;
     }
 
-    // 5. Red reticle centroid (two HSV bands for red)
+    // 3. Red reticle
     cv::Point2d r1 = findCentroid(hsv, {0, 50, 50},   {10, 255, 255});
     cv::Point2d r2 = findCentroid(hsv, {170, 50, 50},  {180, 255, 255});
     cv::Point2d reticle;
@@ -141,28 +113,23 @@ int main() {
     else if (r2.x >= 0)
         reticle = r2;
     else {
-        std::cout << "Error: Reticle not detected\n";
+        std::cout << "Error: Reticle not detected" << std::endl;
         return 0;
     }
 
-    // 6. Calculations
-    double hob_mm = cfg.bore_to_rail_height + cfg.optic_base_to_center;
-
-    // Ideal reticle position (image Y grows downward, so "above" = minus Y)
+    // 4. Calculations
+    double hob_mm = BORE_TO_RAIL_HEIGHT + OPTIC_BASE_TO_CENTER;
     double ideal_x = laser.x;
     double ideal_y = laser.y - (hob_mm * ppmm);
 
-    // Errors in mm
     double error_x_mm = (reticle.x - ideal_x) / ppmm;
     double error_y_mm = (ideal_y - reticle.y) / ppmm;
+    double abs_y_mm   = std::abs(laser.y - reticle.y) / ppmm;
 
-    // Absolute Y distance between laser and reticle on Y-axis
-    double abs_y_mm = std::abs(laser.y - reticle.y) / ppmm;
-
-    // 7. Output
-    std::cout << "Error X: " << error_x_mm << " mm\n";
-    std::cout << "Error Y: " << error_y_mm << " mm\n";
-    std::cout << "Absolute Y Distance: " << abs_y_mm << " mm\n";
+    // 5. Output
+    std::cout << "Error X: " << error_x_mm << " mm" << std::endl;
+    std::cout << "Error Y: " << error_y_mm << " mm" << std::endl;
+    std::cout << "Absolute Y Distance: " << abs_y_mm << " mm" << std::endl;
 
     return 0;
 }
