@@ -204,7 +204,7 @@ function runPipeline(img) {
         const r2 = findCentroid(hsv2, [170, 50, 50], [180, 255, 255]);
         let reticle = null;
         if (r1 && r2) {
-            reticle = { x: (r1.x + r2.x) / 2, y: (r1.y + r2.y) / 2 };
+            reticle = { x: (r1.x + r2.x) / 2, y: (r1.y + r2.y) / 2, radius: Math.max(r1.radius, r2.radius) };
         } else if (r1) {
             reticle = r1;
         } else if (r2) {
@@ -353,11 +353,9 @@ function findCentroid(hsv, lo, hi) {
     const cx = moments.m10 / moments.m00;
     const cy = moments.m01 / moments.m00;
 
-    // Get minimum enclosing circle for the detected blob
-    const center = new cv.Point(0, 0);
-    const radius = { radius: 0 };
-    cv.minEnclosingCircle(bestContour, center, radius);
-    const encR = radius.radius;
+    // Get bounding rect to know the blob size
+    const rect = cv.boundingRect(bestContour);
+    const encR = Math.max(rect.width, rect.height) / 2;
 
     contours.delete();
     return { x: cx, y: cy, radius: encR };
