@@ -379,25 +379,5 @@ function showResults(output) {
             <span class="result-label">Absolute Y Distance:</span>
             <span class="result-value">${output.abs_y.toFixed(2)} mm</span>
         </div>
-        <div class="result-row" style="border-top: 1px solid #2a2a4a; margin-top: 10px; padding-top: 10px;">
-            <span class="result-label">Scale (pixels/mm):</span>
-            <span class="result-value">${output.ppmm.toFixed(3)}</span>
-        </div>
-        <div class="result-row">
-            <span class="result-label">Laser position:</span>
-            <span class="result-value">(${output.laser.x.toFixed(1)}, ${output.laser.y.toFixed(1)}) px</span>
-        </div>
-        <div class="result-row">
-            <span class="result-label">Reticle position:</span>
-            <span class="result-value">(${output.reticle.x.toFixed(1)}, ${output.reticle.y.toFixed(1)}) px</span>
-        </div>
-        <div class="result-row">
-            <span class="result-label">Ideal laser position:</span>
-            <span class="result-value">(${output.ideal.x.toFixed(1)}, ${output.ideal.y.toFixed(1)}) px</span>
-        </div>
-        <div class="result-row">
-            <span class="result-label">Pixel distance (laser→reticle):</span>
-            <span class="result-value">ΔX=${(output.laser.x - output.reticle.x).toFixed(1)}  ΔY=${(output.laser.y - output.reticle.y).toFixed(1)} px</span>
-        </div>
     `;
 }
