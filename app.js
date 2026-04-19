@@ -78,36 +78,36 @@ function drawAnnotations(output) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(loadedImage, 0, 0);
 
-    const r = Math.max(25, output.ppmm * 8);
+    // Use actual detected contour radius (+ small padding)
+    const laserR = Math.max(15, (output.laser.radius || 20) + 5);
+    const reticleR = Math.max(15, (output.reticle.radius || 20) + 5);
     const blueDotR = Math.max(8, output.ppmm * 5);
     const lw = Math.max(3, output.ppmm * 0.5);
     const fontSize = Math.max(14, output.ppmm * 3);
+    const markerPx = output.ppmm * 5; // 5mm
 
-    // 5mm markers
-    const markerPx = output.ppmm * 5; // 5mm in pixels
-
-    // ── 1. Green circle around laser ─────────────────────────────
+    // ── 1. Green circle around laser (fits detected blob) ────────
     ctx.beginPath();
-    ctx.arc(output.laser.x, output.laser.y, r, 0, 2 * Math.PI);
+    ctx.arc(output.laser.x, output.laser.y, laserR, 0, 2 * Math.PI);
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = lw;
     ctx.stroke();
 
-    // Black square at laser center (5mm side)
+    // Black square at laser center (5mm)
     ctx.fillStyle = '#000000';
     ctx.fillRect(output.laser.x - markerPx/2, output.laser.y - markerPx/2, markerPx, markerPx);
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = Math.max(1, output.ppmm * 0.2);
     ctx.strokeRect(output.laser.x - markerPx/2, output.laser.y - markerPx/2, markerPx, markerPx);
 
-    // ── 2. Red circle around reticle ─────────────────────────────
+    // ── 2. Red circle around reticle (fits detected blob) ────────
     ctx.beginPath();
-    ctx.arc(output.reticle.x, output.reticle.y, r, 0, 2 * Math.PI);
+    ctx.arc(output.reticle.x, output.reticle.y, reticleR, 0, 2 * Math.PI);
     ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = lw;
     ctx.stroke();
 
-    // Black triangle at reticle center (5mm height)
+    // Black triangle at reticle center (5mm)
     const triH = markerPx;
     ctx.fillStyle = '#000000';
     ctx.beginPath();
@@ -149,14 +149,16 @@ function drawAnnotations(output) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ── 6. Labels ────────────────────────────────────────────────
+    // ── 6. Labels (above each shape) ─────────────────────────────
     ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textAlign = 'center';
     ctx.fillStyle = '#00ff00';
-    ctx.fillText('Laser', output.laser.x + r + 5, output.laser.y - 5);
+    ctx.fillText('Laser', output.laser.x, output.laser.y - laserR - 8);
     ctx.fillStyle = '#ff0000';
-    ctx.fillText('Reticle', output.reticle.x + r + 5, output.reticle.y - 5);
+    ctx.fillText('Reticle', output.reticle.x, output.reticle.y - reticleR - 8);
     ctx.fillStyle = '#3399ff';
-    ctx.fillText('Ideal Laser', output.ideal.x + blueDotR + 5, output.ideal.y - 5);
+    ctx.fillText('Ideal Laser', output.ideal.x, output.ideal.y - blueDotR - 8);
+    ctx.textAlign = 'start';
 }
 
 function runPipeline(img) {
@@ -344,11 +346,21 @@ function findCentroid(hsv, lo, hi) {
         if (area > maxArea) { maxArea = area; maxIdx = i; }
     }
 
-    const moments = cv.moments(contours.get(maxIdx));
-    contours.delete();
+    const bestContour = contours.get(maxIdx);
+    const moments = cv.moments(bestContour);
+    if (moments.m00 < 1e-6) { contours.delete(); return null; }
 
-    if (moments.m00 < 1e-6) return null;
-    return { x: moments.m10 / moments.m00, y: moments.m01 / moments.m00 };
+    const cx = moments.m10 / moments.m00;
+    const cy = moments.m01 / moments.m00;
+
+    // Get minimum enclosing circle for the detected blob
+    const center = new cv.Point(0, 0);
+    const radius = { radius: 0 };
+    cv.minEnclosingCircle(bestContour, center, radius);
+    const encR = radius.radius;
+
+    contours.delete();
+    return { x: cx, y: cy, radius: encR };
 }
 
 // ── Display Results ─────────────────────────────────────────────
