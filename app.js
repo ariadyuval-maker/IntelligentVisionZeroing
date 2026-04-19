@@ -215,16 +215,25 @@ function runPipeline(img) {
             return { error: 'Error: Reticle not detected' };
         }
 
-        // 4. Calculations
+        // 4. Calculations (coordinate system: reticle = origin, right = +X, up = +Y)
         const hob_mm  = BORE_TO_RAIL + OPTIC_CENTER;
         // Ideal laser position: directly below the reticle by HOB
-        // (image Y grows downward, so + means below)
         const ideal_laser_x = reticle.x;
-        const ideal_laser_y = reticle.y + (hob_mm * ppmm);
+        const ideal_laser_y = reticle.y + (hob_mm * ppmm); // image Y down = physical below
 
-        const error_x = (laser.x - ideal_laser_x) / ppmm;
-        const error_y = (laser.y - ideal_laser_y) / ppmm;
-        const abs_y   = Math.abs(laser.y - reticle.y) / ppmm;
+        // Laser position relative to reticle (reticle = 0,0)
+        // image X right = +X, image Y down = -Y (inverted)
+        const laser_x_mm = (laser.x - reticle.x) / ppmm;
+        const laser_y_mm = -(laser.y - reticle.y) / ppmm; // negate: up = positive
+
+        // Ideal laser position relative to reticle
+        const ideal_x_mm = 0; // same X as reticle
+        const ideal_y_mm = -hob_mm; // HOB below reticle = negative Y
+
+        // Error = laser position minus ideal position
+        const error_x = laser_x_mm - ideal_x_mm;
+        const error_y = laser_y_mm - ideal_y_mm;
+        const abs_y   = Math.abs(laser_y_mm);
 
         gray.delete(); hsv2.delete(); src.delete();
 
@@ -232,6 +241,8 @@ function runPipeline(img) {
             error_x: error_x,
             error_y: error_y,
             abs_y: abs_y,
+            laser_x_mm: laser_x_mm,
+            laser_y_mm: laser_y_mm,
             ppmm: ppmm,
             laser: laser,
             reticle: reticle,
@@ -375,15 +386,25 @@ function showResults(output) {
     }
 
     results.className = 'success';
+    const xDir = output.error_x >= 0 ? '→ Right' : '← Left';
+    const yDir = output.error_y >= 0 ? '↑ Up' : '↓ Down';
     results.innerHTML = `
         <div class="result-title success">✅ Analysis Complete</div>
         <div class="result-row">
+            <span class="result-label">Laser X (from Reticle):</span>
+            <span class="result-value">${output.laser_x_mm.toFixed(2)} mm</span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Laser Y (from Reticle):</span>
+            <span class="result-value">${output.laser_y_mm.toFixed(2)} mm</span>
+        </div>
+        <div class="result-row" style="border-top: 1px solid #2a2a4a; margin-top: 8px; padding-top: 8px;">
             <span class="result-label">Error X (Windage):</span>
-            <span class="result-value">${output.error_x.toFixed(2)} mm</span>
+            <span class="result-value">${output.error_x.toFixed(2)} mm ${xDir}</span>
         </div>
         <div class="result-row">
             <span class="result-label">Error Y (Elevation):</span>
-            <span class="result-value">${output.error_y.toFixed(2)} mm</span>
+            <span class="result-value">${output.error_y.toFixed(2)} mm ${yDir}</span>
         </div>
         <div class="result-row">
             <span class="result-label">Absolute Y Distance:</span>
